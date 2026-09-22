@@ -1,85 +1,528 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Imam Baehaqi — Backend Developer & DBA</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="icon" type="image/png" href="favicon.png" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Imam Baehaqi — jalan-jalan ke ruang server</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.52.0/phaser.min.js"></script>
+<style>
+  :root{
+    --bg: #0e1c2e;
+    --grid-line: #1b3350;
+    --floor: #14283f;
+    --floor-alt: #17304a;
+    --wall: #0a1626;
+    --panel: #12233a;
+    --text: #eef3fa;
+    --muted: #93a7c2;
+    --amber: #f2a541;
+    --amber-dim: #6a5326;
+    --cyan: #6fd7d0;
+    --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --bg:#0e1c2e; }
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-padding-top: env(safe-area-inset-top,0px); }
+  body{
+    margin:0;
+    background: var(--bg);
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 26px 26px;
+    color:var(--text);
+    font-family: var(--font-mono);
+    min-height:100%;
+  }
+
+  .wrap{ max-width: 720px; margin:0 auto; padding: 28px 20px 48px; }
+
+  header{ margin-bottom: 22px; }
+  .kicker{
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--amber);
+    margin-bottom: 10px;
+    letter-spacing: 0.02em;
+  }
+  h1{
+    font-family: var(--font-display);
+    font-weight:700;
+    font-size: clamp(26px, 5vw, 38px);
+    line-height:1.15;
+    margin: 0 0 12px;
+    max-width: 18ch;
+  }
+  header p{
+    font-size:14.5px;
+    line-height:1.6;
+    color: var(--muted);
+    max-width: 52ch;
+    margin: 0;
+  }
+
+  .hud{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin: 20px 0 12px;
+    font-family: var(--font-mono);
+    font-size:13px;
+    color: var(--muted);
+  }
+  .hud .found{ color: var(--text); }
+  .hud .found b{ color: var(--amber); }
+  .legend{ display:flex; gap:14px; flex-wrap:wrap; }
+  .legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .legend i{ width:9px; height:9px; border-radius:2px; display:inline-block; background:var(--amber-dim); }
+  .legend i.on{ background:var(--amber); }
+
+  .stage{
+    position:relative;
+    width:100%;
+    max-width: 560px;
+    aspect-ratio: 13 / 9;
+    margin: 0 auto;
+    border-radius: 10px;
+    overflow:hidden;
+    border: 1px solid var(--grid-line);
+    background: var(--wall);
+  }
+  .stage canvas{ display:block; width:100% !important; height:100% !important; }
+  .loading{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--font-mono); font-size:12.5px; color:var(--muted);
+  }
+
+  .controls{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    margin-top:18px;
+    flex-wrap:wrap;
+  }
+  .hint{
+    font-family: var(--font-mono);
+    font-size:12.5px;
+    color: var(--muted);
+  }
+  .hint kbd{
+    font-family: var(--font-mono);
+    background: var(--panel);
+    border:1px solid var(--grid-line);
+    border-radius:4px;
+    padding:1px 6px;
+    color: var(--text);
+  }
+  .dpad{
+    display:grid;
+    grid-template-columns: repeat(3, 40px);
+    grid-template-rows: repeat(3, 40px);
+    gap:4px;
+    touch-action: none;
+  }
+  .dpad button{
+    background: var(--panel);
+    border:1px solid var(--grid-line);
+    border-radius:8px;
+    color: var(--text);
+    font-size:16px;
+    cursor:pointer;
+  }
+  .dpad button:hover{ border-color: var(--cyan); }
+  .dpad button:active{ border-color: var(--cyan); background: var(--floor-alt); }
+  .dpad button:focus-visible{ outline:2px solid var(--cyan); outline-offset:2px; }
+  .dpad .up{ grid-column:2; grid-row:1; }
+  .dpad .left{ grid-column:1; grid-row:2; }
+  .dpad .down{ grid-column:2; grid-row:3; }
+  .dpad .right{ grid-column:3; grid-row:2; }
+
+  /* modal */
+  .overlay{
+    position:fixed; inset:0;
+    background: rgba(8,14,22,0.72);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    z-index:20;
+  }
+  .overlay.open{ display:flex; }
+  .modal{
+    background: var(--panel);
+    border:1px solid var(--grid-line);
+    border-radius:12px;
+    max-width: 440px;
+    width:100%;
+    padding: 22px 22px 20px;
+  }
+  .modal .tag{
+    font-family: var(--font-mono);
+    font-size:11.5px;
+    color: var(--amber);
+    margin-bottom:8px;
+  }
+  .modal h3{
+    font-family: var(--font-display);
+    font-size:21px;
+    margin:0 0 4px;
+  }
+  .modal .role{
+    font-family: var(--font-mono);
+    font-size:12px;
+    color: var(--muted);
+    margin-bottom:14px;
+  }
+  .modal p{ font-size:14.5px; line-height:1.6; color: var(--text); margin: 0 0 16px; }
+  .modal .deps{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px; }
+  .modal .dep{
+    font-family: var(--font-mono);
+    font-size:11.5px;
+    background: var(--floor);
+    border:1px solid var(--grid-line);
+    padding:4px 9px;
+    border-radius:6px;
+    color: var(--text);
+  }
+  .modal .dep.link{ color: var(--cyan); border-color: rgba(111,215,208,0.4); }
+  .modal button{
+    width:100%;
+    padding:11px;
+    border-radius:7px;
+    border:1px solid var(--grid-line);
+    background: var(--floor);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+    margin-top:4px;
+  }
+  .modal button:hover{ border-color: var(--cyan); }
+
+  .win{
+    margin-top:22px;
+    padding:18px 20px;
+    border-radius:10px;
+    border:1px solid var(--amber);
+    background: rgba(242,165,65,0.08);
+    display:none;
+  }
+  .win.show{ display:block; }
+  .win .t1{ font-family: var(--font-display); font-weight:700; font-size:18px; margin-bottom:6px; }
+  .win p{ font-size:14px; color: var(--muted); line-height:1.6; margin:0 0 14px; }
+  .win a.btn{
+    display:inline-block;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    background: var(--amber);
+    color:#1a1200;
+    padding:10px 16px;
+    border-radius:7px;
+    text-decoration:none;
+  }
+
+  footer{
+    margin-top: 34px;
+    font-family: var(--font-mono);
+    font-size:11.5px;
+    color: var(--muted);
+    border-top:1px solid var(--grid-line);
+    padding-top:16px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  footer .links{ display:flex; gap:14px; }
+  footer a{ color: var(--muted); text-decoration:none; }
+  footer a:hover{ color: var(--cyan); }
+</style>
 </head>
 <body>
-
+<div class="wrap">
   <header>
-    <div class="container">
-      <h1>Imam Baehaqi</h1>
-      <p class="tagline">Backend Developer & Database Administrator</p>
-      <div class="links">
-        <a href="https://github.com/baehaqi-dev" target="_blank">GitHub</a>
-        <a href="https://linkedin.com/in/imambaehaqi" target="_blank">LinkedIn</a>
-        <a href="mailto:iambaehaqi@gmail.com">Email</a>
-      </div>
-    </div>
+    <div class="kicker">● ruang server — mode jalan-jalan</div>
+    <h1>Jalan-jalan ke ruang server Imam Baehaqi</h1>
+    <p>Backend Developer &amp; Database Administrator, saat ini menjalani peran fullstack. Gerakkan titik biru untuk menjelajah, lalu tabrak salah satu rak untuk buka detail proyeknya.</p>
   </header>
 
-  <section id="stack">
-    <div class="container">
-      <h2>Tech Stack</h2>
-      <div class="badges">
-        <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
-        <img src="https://img.shields.io/badge/Spring_Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" />
-        <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" />
-        <img src="https://img.shields.io/badge/Oracle-F80000?style=for-the-badge&logo=oracle&logoColor=white" />
-        <img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white" />
-        <img src="https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white" />
-        <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" />
-        <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" />
-      </div>
+  <div class="hud">
+    <div class="found">proyek ditemukan: <b id="found-count">0</b>/4</div>
+    <div class="legend">
+      <span><i id="leg-a"></i> A</span>
+      <span><i id="leg-b"></i> B</span>
+      <span><i id="leg-c"></i> C</span>
+      <span><i id="leg-d"></i> D</span>
     </div>
-  </section>
+  </div>
 
-  <section id="projects">
-    <div class="container">
-      <h2>Projects</h2>
-      <div class="cards">
-        <div class="card">
-          <h3>mini-banking-app</h3>
-          <p>Mini banking application with REST API, health check endpoint, and automated CI/CD pipeline.</p>
-          <div class="card-meta">
-            <span class="tag">Node.js</span>
-            <span class="tag">Express</span>
-            <span class="tag">PM2</span>
-          </div>
-          <div class="card-links">
-            <a href="https://github.com/baehaqi-dev/mini-banking-app" target="_blank">→ View on GitHub</a>
-          </div>
-          <img src="https://github.com/baehaqi-dev/mini-banking-app/actions/workflows/deploy.yml/badge.svg" alt="CI badge" />
-        </div>
-      </div>
-    </div>
-  </section>
+  <div class="stage" id="stage">
+    <div class="loading" id="loading">memuat ruang server…</div>
+  </div>
 
-  <section id="cicd">
-    <div class="container">
-      <h2>CI/CD Setup</h2>
-      <p>All projects use centralized reusable workflows via <strong>GitHub Organization</strong>.</p>
-      <div class="workflow-list">
-        <div class="workflow-item">
-          <code>node-deploy.yml</code>
-          <span>Node.js + PM2</span>
-        </div>
-        <div class="workflow-item">
-          <code>static-deploy.yml</code>
-          <span>HTML / CSS / JS</span>
-        </div>
-      </div>
+  <div class="controls">
+    <div class="hint">gerak: <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> atau <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+    <div class="dpad">
+      <button class="up" data-dir="up" aria-label="Atas">↑</button>
+      <button class="left" data-dir="left" aria-label="Kiri">←</button>
+      <button class="down" data-dir="down" aria-label="Bawah">↓</button>
+      <button class="right" data-dir="right" aria-label="Kanan">→</button>
     </div>
-  </section>
+  </div>
+
+  <div class="win" id="win">
+    <div class="t1">Semua sistem online.</div>
+    <p>Kamu sudah menemukan keempat proyek. Kalau ada yang menarik, ngobrol langsung aja.</p>
+    <a class="btn" href="mailto:iambaehaqi@gmail.com">Hubungi Imam</a>
+  </div>
 
   <footer>
-    <div class="container">
-      <p>© 2025 Imam Baehaqi · <a href="https://github.com/baehaqi-dev">baehaqi-dev</a></p>
-    </div>
+    <span>ditenagai Phaser — cara lain buat pamer proyek selain daftar biasa</span>
+    <span class="links">
+      <a href="https://github.com/imambaehaqi" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://linkedin.com/in/imambaehaqi" target="_blank" rel="noopener">LinkedIn</a>
+      <a href="mailto:iambaehaqi@gmail.com">Email</a>
+    </span>
   </footer>
+</div>
 
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+  const projects = {
+    A: {
+      name: "undangan-online",
+      role: "REST API — wedding invitation app",
+      period: "baehaqi-dev/undangan-online",
+      desc: "REST API untuk aplikasi undangan pernikahan online, lengkap dengan autentikasi, antrean, dan caching supaya tetap responsif saat trafik ramai.",
+      deps: ["Laravel 13", "Sanctum", "Redis Queue", "Caching"],
+      url: "https://github.com/baehaqi-dev/undangan-online",
+    },
+    B: {
+      name: "mini-banking-app",
+      role: "REST API — mini banking application",
+      period: "dari portofolio sebelumnya",
+      desc: "Aplikasi mini banking dengan REST API dan health check endpoint, dilengkapi pipeline CI/CD otomatis lewat GitHub Actions ke PM2.",
+      deps: ["Node.js", "Express", "PM2", "CI/CD"],
+      url: "",
+    },
+    C: {
+      name: "chat-realtime-java",
+      role: "Realtime chat application",
+      period: "imambaehaqi/chat-realtime-java",
+      desc: "Aplikasi chat realtime berbasis Java, dikembangkan lewat beberapa iterasi (chat-app-1, chat-app-2, chatapp) untuk eksplorasi arsitektur socket.",
+      deps: ["Java", "Sockets"],
+      url: "https://github.com/imambaehaqi/chat-realtime-java",
+    },
+    D: {
+      name: "rent-book-nodejs",
+      role: "Book rental REST API",
+      period: "imambaehaqi/rent-book-nodejs",
+      desc: "Sistem peminjaman buku dengan struktur MVC — pemisahan config dan database layer untuk REST API-nya.",
+      deps: ["Node.js", "MVC", "Database layer"],
+      url: "https://github.com/imambaehaqi/rent-book-nodejs",
+    },
+  };
+
+  const COLORS = {
+    bg: 0x0e1c2e,
+    floor: 0x14283f,
+    gridLine: 0x1b3350,
+    wall: 0x0a1626,
+    panel: 0x12233a,
+    panelBorder: 0x2a4568,
+    amber: 0xf2a541,
+    amberDim: 0x6a5326,
+    cyan: 0x6fd7d0,
+  };
+
+  const overlay = document.getElementById('overlay');
+  const modal = document.getElementById('modal');
+  const foundCountEl = document.getElementById('found-count');
+  const winEl = document.getElementById('win');
+  const visited = new Set();
+  let modalOpen = false;
+
+  function legendUpdate(){
+    ['A','B','C','D'].forEach(id => {
+      document.getElementById('leg-' + id.toLowerCase()).classList.toggle('on', visited.has(id));
+    });
+    foundCountEl.textContent = visited.size;
+    if (visited.size === 4) winEl.classList.add('show');
+  }
+
+  function closeModal(){
+    overlay.classList.remove('open');
+    modalOpen = false;
+  }
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+  function openProject(id, lampSetter){
+    if (modalOpen) return;
+    modalOpen = true;
+    const p = projects[id];
+    const repoLink = p.url
+      ? `<span class="dep link" id="repo-link" style="cursor:pointer;">↗ lihat repo</span>`
+      : '';
+    modal.innerHTML = `
+      <div class="tag">rak ${id}</div>
+      <h3>${p.name}</h3>
+      <div class="role">${p.role} · ${p.period}</div>
+      <p>${p.desc}</p>
+      <div class="deps">${p.deps.map(d => `<span class="dep">${d}</span>`).join('')}${repoLink}</div>
+      <button id="modal-close">Lanjut jalan</button>
+    `;
+    overlay.classList.add('open');
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    const repoEl = document.getElementById('repo-link');
+    if (repoEl) repoEl.addEventListener('click', () => window.open(p.url, '_blank'));
+    if (!visited.has(id)) {
+      visited.add(id);
+      legendUpdate();
+      if (lampSetter) lampSetter();
+    }
+  }
+
+  // ---------------- Phaser scene ----------------
+  const W = 780, H = 540;
+  const TOUCH_DIR = { up:false, down:false, left:false, right:false };
+
+  class RoomScene extends Phaser.Scene {
+    constructor(){ super('room'); }
+
+    create(){
+      this.add.rectangle(W/2, H/2, W, H, COLORS.floor);
+      const g = this.add.graphics();
+      g.lineStyle(1, COLORS.gridLine, 0.6);
+      for (let x = 0; x <= W; x += 30) g.lineBetween(x, 0, x, H);
+      for (let y = 0; y <= H; y += 30) g.lineBetween(0, y, W, y);
+
+      this.walls = this.physics.add.staticGroup();
+      const t = 24;
+      const mkWall = (x, y, w, h) => {
+        const r = this.add.rectangle(x, y, w, h, COLORS.wall);
+        this.physics.add.existing(r, true);
+        this.walls.add(r);
+      };
+      mkWall(W/2, t/2, W, t);
+      mkWall(W/2, H - t/2, W, t);
+      mkWall(t/2, H/2, t, H);
+      mkWall(W - t/2, H/2, t, H);
+
+      this.racks = this.physics.add.staticGroup();
+      const rackDefs = [
+        { id: 'A', x: W*0.30, y: H*0.32 },
+        { id: 'B', x: W*0.70, y: H*0.32 },
+        { id: 'C', x: W*0.30, y: H*0.70 },
+        { id: 'D', x: W*0.70, y: H*0.70 },
+      ];
+      this.rackLamps = {};
+      rackDefs.forEach(def => {
+        const body = this.add.rectangle(def.x, def.y, 84, 60, COLORS.panel);
+        body.setStrokeStyle(2, COLORS.panelBorder);
+        this.physics.add.existing(body, true);
+        body.setData('id', def.id);
+        this.racks.add(body);
+
+        const lamp = this.add.rectangle(def.x, def.y - 6, 16, 16, COLORS.amberDim);
+        this.rackLamps[def.id] = lamp;
+
+        this.add.text(def.x, def.y + 18, def.id, {
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          color: '#93a7c2',
+        }).setOrigin(0.5);
+      });
+
+      this.player = this.add.circle(W/2, H/2, 15, COLORS.cyan);
+      this.physics.add.existing(this.player);
+      this.player.body.setCircle(15);
+      this.player.body.setMaxSpeed(220);
+      this.glow = this.add.circle(W/2, H/2, 22, COLORS.cyan, 0.15);
+
+      this.physics.add.collider(this.player, this.walls);
+      this.physics.add.collider(this.player, this.racks, (player, rack) => {
+        const id = rack.getData('id');
+        openProject(id, () => {
+          this.rackLamps[id].setFillStyle(COLORS.amber);
+          this.tweens.add({ targets: this.rackLamps[id], alpha: { from: 0.3, to: 1 }, duration: 260, yoyo: true, repeat: 2 });
+        });
+      });
+
+      this.cursors = this.input.keyboard.createCursorKeys();
+      this.wasd = this.input.keyboard.addKeys('W,A,S,D');
+
+      document.getElementById('loading').style.display = 'none';
+    }
+
+    update(){
+      this.glow.x = this.player.x;
+      this.glow.y = this.player.y;
+
+      if (modalOpen) { this.player.body.setVelocity(0, 0); return; }
+
+      const speed = 190;
+      let vx = 0, vy = 0;
+      const up = this.cursors.up.isDown || this.wasd.W.isDown || TOUCH_DIR.up;
+      const down = this.cursors.down.isDown || this.wasd.S.isDown || TOUCH_DIR.down;
+      const left = this.cursors.left.isDown || this.wasd.A.isDown || TOUCH_DIR.left;
+      const right = this.cursors.right.isDown || this.wasd.D.isDown || TOUCH_DIR.right;
+
+      if (up) vy -= 1;
+      if (down) vy += 1;
+      if (left) vx -= 1;
+      if (right) vx += 1;
+
+      const len = Math.hypot(vx, vy) || 1;
+      this.player.body.setVelocity((vx/len)*speed, (vy/len)*speed);
+    }
+  }
+
+  const config = {
+    type: Phaser.AUTO,
+    parent: 'stage',
+    width: W,
+    height: H,
+    backgroundColor: '#0a1626',
+    scale: {
+      mode: Phaser.Scale.FIT,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+    },
+    physics: {
+      default: 'arcade',
+      arcade: { gravity: { y: 0 }, debug: false },
+    },
+    scene: [RoomScene],
+  };
+  new Phaser.Game(config);
+
+  document.querySelectorAll('.dpad button').forEach(btn => {
+    const dir = btn.dataset.dir;
+    const setOn = (v) => { TOUCH_DIR[dir] = v; };
+    btn.addEventListener('pointerdown', (e) => { e.preventDefault(); setOn(true); });
+    btn.addEventListener('pointerup', () => setOn(false));
+    btn.addEventListener('pointerleave', () => setOn(false));
+    btn.addEventListener('pointercancel', () => setOn(false));
+  });
+
+  legendUpdate();
+</script>
 </body>
 </html>
