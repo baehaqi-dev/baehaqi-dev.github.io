@@ -371,7 +371,7 @@
     overlay.classList.remove('open');
     modalOpen = false;
   }
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+  overlay.addEventListener('pointerup', (e) => { if (e.target === overlay) closeModal(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
   function openProject(id, lampSetter){
@@ -390,9 +390,9 @@
       <button id="modal-close">Lanjut jalan</button>
     `;
     overlay.classList.add('open');
-    document.getElementById('modal-close').addEventListener('click', closeModal);
+    document.getElementById('modal-close').addEventListener('pointerup', closeModal);
     const repoEl = document.getElementById('repo-link');
-    if (repoEl) repoEl.addEventListener('click', () => window.open(p.url, '_blank'));
+    if (repoEl) repoEl.addEventListener('pointerup', () => window.open(p.url, '_blank'));
     if (!visited.has(id)) {
       visited.add(id);
       legendUpdate();
@@ -508,6 +508,9 @@
     physics: {
       default: 'arcade',
       arcade: { gravity: { y: 0 }, debug: false },
+    },
+    input: {
+      windowEvents: false,
     },
     scene: [RoomScene],
   };
